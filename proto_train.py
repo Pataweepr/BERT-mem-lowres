@@ -38,7 +38,7 @@ def setup_optimizer_and_scheduler(model, bert, lr, warmup_proportion=0.1, total_
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
             {'params':       [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-             'weight_decay': 0.01},
+            'weight_decay': 0.01},
             {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
     warmup_steps = int(warmup_proportion * total_steps)
@@ -81,7 +81,6 @@ def get_token_report(metrics):
         rows.append([c] + mets)
 
     return headers, rows
-
 
 def log_all(y_pred, y_true, prefix, log_token, log_entity, step):
     if log_token and log_entity:
@@ -140,7 +139,6 @@ def log_all(y_pred, y_true, prefix, log_token, log_entity, step):
         }, step=step)
         return metrics_micro["f1score"]
 
-
 def get_data(examples, label_list, label_map, tokenizer, label_noise_addition=0.0):
     features = convert_examples_to_features(examples, label_list, 50, tokenizer)
 
@@ -182,7 +180,6 @@ def get_data(examples, label_list, label_map, tokenizer, label_noise_addition=0.
 
     return data
 
-
 class MockTrainedBert:
     def __init__(self, dataset):
         self.dataset = dataset
@@ -204,7 +201,6 @@ class MockTrainedBert:
         else:
             return self.test_embeddings[idxs], self.test_labels[idxs]
 
-
 class TrueBert:
     def __init__(self, dataset):
         self.data_dir = get_data_dirs_cardinal()[dataset]
@@ -219,7 +215,7 @@ class TrueBert:
         self.test_data = get_data(self.test_examples, self.label_list, self.label_map, self.tokenizer)
 
         config = get_configs()["BERT"].from_pretrained('bert-base-cased', num_labels=len(self.label_map), finetuning_task='ner',
-                                                       output_hidden_states=True)
+                                                        output_hidden_states=True)
         self.bert = BertModel.from_pretrained('bert-base-cased', from_tf=False, config=config).cuda()
 
     def get_from_sent_idxs(self, idxs, train=True, output_valid=False):
@@ -484,6 +480,7 @@ def train_proto(y, test_data, bert_model, epochs=1000, lr=1e-3, negative_samplin
     return model
 
 
+# TODO : main of training model
 def train_standard(lr, epochs, bert_model):
     loss_f = nn.CrossEntropyLoss()
 
@@ -503,6 +500,7 @@ def train_standard(lr, epochs, bert_model):
             indices = permutation[b: ub]
 
             train_embs, train_labs = bert_model.get_from_sent_idxs(indices)
+            # * https://pytorch.org/docs/stable/generated/torch.Tensor.view.html
             output = model(train_embs.view(-1, 768))
 
             idxs_keep_output = ((train_labs != 0) & (train_labs != num_labels-2) & (train_labs != num_labels-1)).view(-1)
@@ -529,10 +527,10 @@ def train_standard(lr, epochs, bert_model):
                     for j, b in enumerate(range(0, size_test, 256)):
                         ub = min(b + 256, size_test)
                         test_embs, test_labs, valid_test_embs, original_test_labs = bert_model.get_from_sent_idxs(range(b, ub), train=False,
-                                                                                                                  output_valid=True)
+                                                                                                                    output_valid=True)
                         output = model(test_embs)
                         output2 = model(valid_test_embs)
-
+                        # * torch.cat == concat
                         y_true, y_pred = get_labels(torch.cat((torch.zeros(output2.shape[0], output2.shape[1], 1).cuda() - 500, output2), dim=2),
                                                     original_test_labs, bert.label_map)
                         all_true.extend(y_true)
@@ -549,7 +547,7 @@ def train_standard(lr, epochs, bert_model):
                     log_all(all_pred, all_true, "test", False, True, size_train * epoch + 64 * i)
 
     return model
-
+# TODO-end : main of training model
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Experiments with protonetwork and standard network')

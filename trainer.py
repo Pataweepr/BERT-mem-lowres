@@ -32,45 +32,44 @@ logger = logging.getLogger(__name__)
 
 
 class Trainer:
-
     def __init__(self,
-                 wandb=False,
-                 data_dir=None,
-                 model_name="roberta-base",
-                 task_name="ner",
-                 dataset_name="fce",
-                 output_dir="./out/",
-                 cache_dir="",
-                 max_seq_length=128,
-                 do_train=True,
-                 do_eval=True,
-                 eval_on="dev",  # or "test"
-                 do_lower_case=False,
-                 train_batch_size=32,
-                 eval_batch_size=32,
-                 learning_rate=5e-5,
-                 num_train_epochs=5.0,
-                 warmup_proportion=0.1,
-                 weight_decay=0.01,
-                 adam_epsilon=1e-8,
-                 max_grad_norm=1.0,
-                 no_cuda=False,
-                 local_rank=-1,  # local_rank for distributed training on gpus
-                 seed=42,
-                 gradient_accumulation_steps=1,
-                 # Number of updates steps to accumulate before performing a backward/update pass.
-                 fp16=False,  # Whether to use 16-bit float precision instead of 32-bit
-                 fp16_opt_level="O1",
-                 # For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']. See details at https://nvidia.github.io/apex/amp.html
-                 loss_scale=0,
-                 # Loss scaling to improve fp16 numeric stability. Only used when fp16 set to True. 0 (default value): dynamic loss scaling. Positive power of 2: static loss scaling value.
-                 server_ip="",
-                 server_port="",
-                 print_every=50,
-                 n_gpu=None,
-                 noise_addition=0.0
-                 ):
-
+                wandb=False,
+                data_dir=None,
+                model_name="roberta-base",
+                task_name="ner",
+                dataset_name="fce",
+                output_dir="./out/",
+                cache_dir="",
+                max_seq_length=128,
+                do_train=True,
+                do_eval=True,
+                eval_on="dev",  # or "test"
+                do_lower_case=False,
+                train_batch_size=32,
+                eval_batch_size=32,
+                learning_rate=5e-5,
+                num_train_epochs=5.0,
+                warmup_proportion=0.1,
+                weight_decay=0.01,
+                adam_epsilon=1e-8,
+                max_grad_norm=1.0,
+                no_cuda=False,
+                local_rank=-1,  # local_rank for distributed training on gpus
+                seed=42,
+                gradient_accumulation_steps=1,
+                # Number of updates steps to accumulate before performing a backward/update pass.
+                fp16=False,  # Whether to use 16-bit float precision instead of 32-bit
+                fp16_opt_level="O1",
+                # For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']. See details at https://nvidia.github.io/apex/amp.html
+                loss_scale=0,
+                # Loss scaling to improve fp16 numeric stability. Only used when fp16 set to True. 0 (default value): dynamic loss scaling. Positive power of 2: static loss scaling value.
+                server_ip="",
+                server_port="",
+                print_every=50,
+                n_gpu=None,
+                noise_addition=0.0
+                ):
+                
         self.data_dir = data_dir
         self.model_name = model_name
         self.task_name = task_name.lower()
@@ -262,13 +261,13 @@ class Trainer:
         no_decay = ['bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
             {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-             'weight_decay': self.weight_decay},
+            'weight_decay': self.weight_decay},
             {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
         warmup_steps = int(self.warmup_proportion * self.num_train_optimization_steps)
         self.optimizer = AdamW(optimizer_grouped_parameters, lr=self.learning_rate, eps=self.adam_epsilon)
         self.scheduler = WarmupLinearSchedule(self.optimizer, warmup_steps=warmup_steps,
-                                              t_total=self.num_train_optimization_steps)
+                                                t_total=self.num_train_optimization_steps)
 
     def train(self, start_epoch=0):
         global_step = 0
@@ -279,8 +278,8 @@ class Trainer:
         if self.do_train:
             self.model.train()
             train_dataloader = self.get_dataloader(train=True,
-                                                   force_recompute=False,
-                                                   label_noise_addition=self.noise_addition)
+                                                    force_recompute=False,
+                                                    label_noise_addition=self.noise_addition)
             total = train_dataloader.dataset.tensors[0].shape[0]
 
             for epoch in trange(start_epoch, int(self.num_train_epochs) + start_epoch, desc="Epoch"):
@@ -296,11 +295,11 @@ class Trainer:
                     selected_idxs = selected_idxs.cpu()
 
                     loss, logits = self.model(input_ids, token_type_ids=segment_ids,
-                                                                     attention_mask=input_mask,
-                                                                     labels=label_ids, valid_ids=valid_ids,
-                                                                     attention_mask_label=l_mask,
-                                                                     examples_indexes=selected_idxs,
-                                                                     task="train",
+                                                                    attention_mask=input_mask,
+                                                                    labels=label_ids, valid_ids=valid_ids,
+                                                                    attention_mask_label=l_mask,
+                                                                    examples_indexes=selected_idxs,
+                                                                    task="train",
                                                                      step=total * epoch + step * self.train_batch_size)
 
                     if self.n_gpu > 1:
@@ -383,7 +382,7 @@ class Trainer:
                                         "entropy/logits-predicted": valid_logits.mean(),
                                         "entropy/summed-weight": summed_weights,
                                         "entropy/summed-gradients": summed_gradients
-                                       },
+                                        },
                                       step=total * epoch + step * self.train_batch_size)
 
                     if (step + 1) % self.gradient_accumulation_steps == 0:
@@ -406,7 +405,7 @@ class Trainer:
                                         f"training-report": wandb.Table(
                                             columns=[""] + metrics["report"].split("\n")[0].split(),
                                             data=[t.split() for i, t in enumerate(metrics["report"].split("\n")) if
-                                                  (0 < i < len(metrics["report"].split("\n")) - 3) and (len(t) > 0)])
+                                                    (0 < i < len(metrics["report"].split("\n")) - 3) and (len(t) > 0)])
                                 }, step=total * epoch + step * self.train_batch_size)
 
                             y_true_loc = [[word if "LOC" in word else "O" for word in sentence] for sentence in y_true]
@@ -576,8 +575,8 @@ class Trainer:
                 if self.wandber.on and metrics["report"] is not None:
                     wandb.log({
                             f"{'validation' if self.eval_on == 'dev' else 'test'}-report": wandb.Table(columns=[""] + metrics["report"].split("\n")[0].split(),
-                                                                   data=[t.split() for i, t in enumerate(metrics["report"].split("\n")) if
-                                                                         (0 < i < len(metrics["report"].split("\n")) - 3) and (len(t) > 0)])
+                                                                data=[t.split() for i, t in enumerate(metrics["report"].split("\n")) if
+                                                                (0 < i < len(metrics["report"].split("\n")) - 3) and (len(t) > 0)])
                     }, step=step)
 
                 y_true_loc = [[word if "LOC" in word else "O" for word in sentence] for sentence in y_true]
@@ -738,7 +737,7 @@ class Trainer:
             # -----------------------------------------------------------------
 
             data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_valid_ids,
-                                 all_lmask_ids, noise_selector.long(), idxs.long())
+                                all_lmask_ids, noise_selector.long(), idxs.long())
 
             if self.local_rank == -1 and train:
                 sampler = RandomSampler(data)

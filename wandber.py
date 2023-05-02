@@ -10,8 +10,8 @@ class Wandber:
     def init(self, run_name, parameters):
         if self.on:
             wandb.init(project="<wandb-project-name>",
-                       name=run_name,
-                       config=parameters)
+                        name=run_name,
+                        config=parameters)
 
     def watch(self, model):
         if self.on:
