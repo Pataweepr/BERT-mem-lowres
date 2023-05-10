@@ -234,12 +234,6 @@ class Trainer:
 
         self.setup_optimizer_and_scheduler()
 
-        if self.fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-            self.model, self.optimizer = amp.initialize(self.model, self.optimizer, opt_level=self.fp16_opt_level)
 
         # multi-gpu training (should be after apex fp16 initialization)
         if self.n_gpu > 1:
@@ -247,8 +241,8 @@ class Trainer:
 
         if self.local_rank != -1:
             self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[self.local_rank],
-                                                                   output_device=self.local_rank,
-                                                                   find_unused_parameters=True)
+                                                                    output_device=self.local_rank,
+                                                                    find_unused_parameters=True)
 
         self.wandber.watch(self.model)
 
@@ -307,19 +301,9 @@ class Trainer:
                     if self.gradient_accumulation_steps > 1:
                         loss = loss / self.gradient_accumulation_steps
 
-                    if self.fp16:
-                        try:
-                            from apex import amp
-                        except ImportError:
-                            raise ImportError(
-                                "Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
-                        with amp.scale_loss(loss, self.optimizer) as scaled_loss:
-                            scaled_loss.backward()
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(self.optimizer), self.max_grad_norm)
-                    else:
-                        loss.backward()
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
 
                     tr_loss += loss.item()
                     # nb_tr_examples += input_ids.size(0)
@@ -544,13 +528,12 @@ class Trainer:
                     selected_idxs = selected_idxs.cuda()
 
                     logits, logits_bm = self.model(input_ids, token_type_ids=segment_ids,
-                                                                     attention_mask=input_mask,
-                                                                     valid_ids=valid_ids,
-                                                                     attention_mask_label=l_mask,
-                                                                     examples_indexes=selected_idxs,
-                                                                     task=self.eval_on,
-                                                                     step=step
-                                                                  )
+                                                                    attention_mask=input_mask,
+                                                                    valid_ids=valid_ids,
+                                                                    attention_mask_label=l_mask,
+                                                                    examples_indexes=selected_idxs,
+                                                                    task=self.eval_on,
+                                                                    step=step)
 
                     logits = logits.cpu().detach()
                     logits_bm = logits_bm.cpu().detach()
